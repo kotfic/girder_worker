@@ -75,7 +75,8 @@ class Task(celery.Task):
     reserved_headers = [
         'girder_client_token',
         'girder_api_url',
-        'girder_result_hooks']
+        'girder_result_hooks',
+        'girder_parent_id']
 
     # These keys will be available in the 'properties' dictionary inside
     # girder_before_task_publish() but will not be passed along in the message
@@ -186,6 +187,13 @@ def _maybe_model_repr(obj):
     return obj
 
 
+def _set_arg_to_chained_tasks(body, arg, val):
+    # Helper function which sets a value to chained child tasks
+    chained_tasks = body[2].get('chain')
+    if chained_tasks:
+        for i in chained_tasks:
+            if arg not in i.kwargs.keys():
+                    i.kwargs[arg] = val
 @before_task_publish.connect
 def girder_before_task_publish(sender=None, body=None, exchange=None,
                                routing_key=None, headers=None, properties=None,
@@ -240,6 +248,7 @@ def girder_before_task_publish(sender=None, body=None, exchange=None,
             try:
                 from girder.plugins.worker import utils
                 headers['girder_api_url'] = utils.getWorkerApiUrl()
+                _set_arg_to_chained_tasks(body, 'girder_api_url', headers['girder_api_url'])
             except ImportError:
                 # TODO: handle situation where girder_worker is producing
                 #       the message Note - this may not come up at all
@@ -253,6 +262,7 @@ def girder_before_task_publish(sender=None, body=None, exchange=None,
                 from girder.utility.model_importer import ModelImporter
                 headers['girder_client_token'] = \
                     ModelImporter.model('token').createToken()
+                _set_arg_to_chained_tasks(body, 'girder_client_token', headers['girder_client_token'])
             except ImportError:
                 # TODO: handle situation where girder_worker is producing
                 #       the message Note - this may not come up at all
