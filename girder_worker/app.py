@@ -454,7 +454,8 @@ def is_revoked(task):
     :return True, if this task is in the revoked list for this worker, False
             otherwise.
     """
-    return task.request.id in _revoked_tasks(task)
+    return False
+
 
 
 register('girder_io', jsonpickle.encode, jsonpickle.decode,
